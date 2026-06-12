@@ -1,84 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Patient Feedback and FU Management</title>
-    <link rel="icon" href="favicon.png" type="image/png">
-    <style>
-        *, *::before, *::after {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Patient Feedback and FU Management</title>
+  <link rel="icon" href="favicon.png" type="image/png">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #f0f4f8;
-        }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #f3fbf7;
+    }
 
-        /* Loading screen shown while iframe fetches */
-        #loading {
-            position: fixed;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: #f0f4f8;
-            z-index: 10;
-            gap: 14px;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            color: #555;
-            font-size: 15px;
-        }
+    /* ── Loading overlay ─────────────────────────────────── */
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f3fbf7 0%, #eaf7f1 50%, #eef2f7 100%);
+      z-index: 100;
+      gap: 16px;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
 
-        .spinner {
-            width: 44px;
-            height: 44px;
-            border: 4px solid #dde3ea;
-            border-top-color: #4285f4;
-            border-radius: 50%;
-            animation: spin 0.75s linear infinite;
-        }
+    #loading.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+    .load-logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      object-fit: contain;
+      box-shadow: 0 4px 16px rgba(5,150,105,0.18);
+    }
 
-        iframe {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            height: 100dvh; /* dvh handles mobile browser address bar correctly */
-            border: none;
-            display: block;
-            z-index: 1;
-        }
-    </style>
+    .load-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #065f46;
+      letter-spacing: -0.2px;
+    }
+
+    .load-sub {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: -10px;
+    }
+
+    /* Progress bar — animates from 0→85% automatically,
+       jumps to 100% when iframe fires onload             */
+    .progress-track {
+      width: 200px;
+      height: 4px;
+      background: rgba(5,150,105,0.12);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #10b981, #0ea5e9);
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    /* ── Iframe ──────────────────────────────────────────── */
+    iframe {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      border: none;
+      display: block;
+      z-index: 1;
+      /* Start invisible so it renders behind the loader */
+      opacity: 0;
+      transition: opacity 0.35s ease;
+    }
+
+    iframe.ready {
+      opacity: 1;
+    }
+  </style>
 </head>
 <body>
 
-    <!-- Loading overlay: hidden automatically once iframe is ready -->
-    <div id="loading">
-        <div class="spinner"></div>
-        <span>Loading Patient Feedback and FU Management…</span>
+  <div id="loading">
+    <img src="favicon.png" alt="Logo" class="load-logo"
+         onerror="this.style.display='none'">
+    <p class="load-title">HPV Vaccination Portal</p>
+    <p class="load-sub">West Bengal Health Department</p>
+    <div class="progress-track">
+      <div class="progress-bar" id="prog"></div>
     </div>
+  </div>
 
-    <iframe
-        src="https://script.google.com/macros/s/AKfycbywizC1BIbSFw_50oWammn-uk8zSYkumLTv4zMUE1LbpfKQ6EIl0z9pJu5Czqt7SzQ/exec"
-        allow="geolocation"
-        allowfullscreen
-        title="Patient Feedback and FU Management"
-        onload="document.getElementById('loading').style.display='none'">
-    </iframe>
+  <iframe
+    id="appFrame"
+    src="https://script.google.com/macros/s/AKfycbywizC1BIbSFw_50oWammn-uk8zSYkumLTv4zMUE1LbpfKQ6EIl0z9pJu5Czqt7SzQ/exec"
+    allow="geolocation"
+    allowfullscreen
+    title="Patient Feedback and FU Management"
+    onload="frameReady()">
+  </iframe>
+
+  <script>
+    const prog    = document.getElementById('prog');
+    const loading = document.getElementById('loading');
+    const frame   = document.getElementById('appFrame');
+
+    // ── Animate progress bar to 85% while waiting ──────────
+    const steps = [15, 30, 50, 68, 80, 85];
+    let i = 0;
+    const tick = setInterval(() => {
+      if (i < steps.length) {
+        prog.style.width = steps[i++] + '%';
+      } else {
+        clearInterval(tick);
+      }
+    }, 400);
+
+    // ── Called when iframe finishes loading ────────────────
+    function frameReady() {
+      clearInterval(tick);
+
+      // Jump bar to 100%
+      prog.style.width = '100%';
+
+      // Short pause so user sees 100%, then fade out loader
+      setTimeout(() => {
+        loading.classList.add('hidden');
+        frame.classList.add('ready');
+      }, 300);
+    }
+
+    // ── Safety fallback: hide loader after 12 s no matter what
+    setTimeout(() => {
+      if (!loading.classList.contains('hidden')) {
+        loading.classList.add('hidden');
+        frame.classList.add('ready');
+      }
+    }, 12000);
+  </script>
 
 </body>
 </html>
